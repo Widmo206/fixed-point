@@ -8,95 +8,105 @@ Created on 2025.04.04
 from typing import Self
 
 
-class fix(object):
-    def __init__(self, value: int=0):
-        assert type(value) is int
-        self.value = value
+class fixed(object):
+    def __init__(self, value=0, _is_fixed=False):
+        if _is_fixed:
+            assert type(value) is int
+            self.value = value
+            return
+        elif value == 0:
+            self.value = 0
+            return
+
+        match value:
+            case int():
+                self.value = value << 16
+            case float():
+                self.value = int(value*65536)
+            case str():
+                self.value = int(float(value) * 65536)
+            case fixed():
+                # I know it looks weird
+                self.value = value.value
+            case _:
+                raise TypeError(f"{type(value)} can't be interpreted as a fixed point number")
 
     def __repr__(self) -> str:
-        return str(self.to_float())
+        # return f"{self.value >> 16}{str(self._decimal/65536)[1:]}"
+        return str(float(self))
 
     @staticmethod
     def epsilon():
-        return fix(1)
+        return fixed(1, True)
 
+    @property
     def _decimal(self):
         return self.value & 65535
 
 
-    # conversion from types
-    @staticmethod
-    def from_int(val: int) -> Self:
-        return fix(val << 16)
-
-    def to_int(self) -> int:
+    # conversion to other types
+    def __int__(self) -> int:
         return self.value >> 16
 
-    @staticmethod
-    def from_float(val: float) -> Self:
-        return fix(int(val*65536))
-
-    def to_float(self) -> float:
-        return self.to_int() + self._decimal()/65536
+    def __float__(self) -> float:
+        return self.value/65536
 
 
     # basic operations
     # addition
-    def __add__(self, other: Self | int | float) -> Self:
-        if type(other) is int:
-            return fix(self.value + (other << 16))
-        if type(other) is float:
-            return fix(self.value + int(other*65536))
-        return fix(self.value + other.value)
+    def __add__(self, other) -> Self:
+        if type(other) is not fixed:
+            return self + fixed(other)
+        else:
+            return fixed(self.value + other.value, True)
 
-    def __radd__(self, other: Self | int | float) -> Self:
-        return self + other
+    def __radd__(self, other) -> Self:
+        return fixed(other) + self
 
     # subtraction
-    def __sub__(self, other: Self | int | float) -> Self:
-        if type(other) is int:
-            return fix(self.value - (other << 16))
-        if type(other) is float:
-            return fix(self.value - int(other*65536))
-        return fix(self.value - other.value)
+    def __sub__(self, other) -> Self:
+        if type(other) is not fixed:
+            return self - fixed(other)
+        else:
+            return fixed(self.value - other.value, True)
 
-    def __rsub__(self, other: Self | int | float) -> Self:
-        return self - other
+    def __rsub__(self, other) -> Self:
+        return fixed(other) - self
 
     # multiplication
-    def __mul__(self, other: Self | int | float) -> Self:
-        if type(other) is int:
-            return fix(self.value * other)
-        if type(other) is float:
-            return fix(int(self.value * other))
-        return fix((self.value * other.value) >> 16)
+    def __mul__(self, other) -> Self:
+        if type(other) is not fixed:
+            return self * fixed(other)
+        else:
+            # The bits need to be shifted right because of math reasons
+            return fixed((self.value * other.value) >> 16, True)
 
     def __rmul__(self, other: Self | int | float) -> Self:
-        return self * other
+        return fixed(other) * self
 
     # division
-    def __truediv__(self, other: Self | int | float) -> Self:
-        if type(other) is int or type(other) is float:
-            return fix(self.value // other)
-        return fix((self.value << 16) // other.value)
+    def __truediv__(self, other) -> Self:
+        if type(other) is not fixed:
+            return self / fixed(other)
+        else:
+            return fixed((self.value << 16) // other.value, True)
 
     def __rtruediv__(self, other: Self | int | float) -> Self:
-        if type(other) is int:
-            return fix.from_int(other) / self
-        if type(other) is float:
-            return fix.from_float(other) / self
-        return fix((other.value << 16) // self.value)
+        return fixed(other) / self
 
     # power
     def __pow__(self, power: int) -> Self:
         assert type(power) is int
+
         if power == 0:
-            return fix.from_int(1)
+            return fixed.from_int(1)
+
         elif power > 0:
             result = 1
             for i in range(power):
                 result *= self
             return result
+
         else:
             result = 1
             for i in range(-1, power, -1):
@@ -105,9 +115,9 @@ class fix(object):
 
     # absolute value
     def __abs__(self) -> Self:
-        return fix(abs(self.value))
+        return fixed(abs(self.value), True)
 
 
 if __name__ == "__main__":
-    x = fix.from_int(3)
-    y = fix.from_float(5.125)
+    x = fixed(3)
+    y = fixed(5.125)
