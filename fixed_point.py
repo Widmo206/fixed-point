@@ -77,15 +77,31 @@ class fix(object):
     # division
     def __truediv__(self, other: Self | int | float) -> Self:
         if type(other) is int or type(other) is float:
-            return fix(int(self.value / other))
-        return fix(int((self.value << 16) / other.value))
+            return fix(self.value // other)
+        return fix((self.value << 16) // other.value)
 
     def __rtruediv__(self, other: Self | int | float) -> Self:
         if type(other) is int:
             return fix.from_int(other) / self
         if type(other) is float:
             return fix.from_float(other) / self
-        return fix(int((other.value << 16) / self.value))
+        return fix((other.value << 16) // self.value)
+
+    # power
+    def __pow__(self, power: int) -> Self:
+        assert type(power) is int
+        if power == 0:
+            return fix.from_int(1)
+        elif power > 0:
+            result = 1
+            for i in range(power):
+                result *= self
+            return result
+        else:
+            result = 1
+            for i in range(-1, power, -1):
+                result /= self
+            return result
 
     # absolute value
     def __abs__(self) -> Self:
